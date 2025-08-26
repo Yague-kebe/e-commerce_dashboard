@@ -2,7 +2,7 @@
 Ce projet est un tableau de bord interactif en une seule page (HTML, CSS, JavaScript) conçu pour l'analyse et la détection d'anomalies dans les données de transactions e-commerce. Il permet aux utilisateurs de télécharger un fichier CSV, d'analyser les données, de visualiser les indicateurs clés de performance (KPI), et d'identifier les anomalies dans les commandes.
 
 ## Démonstration vidéo
- [Télécharger la vidéo de démonstration](./demo.mp4)
+ [Télécharger la vidéo de démonstration](./demo.zip)
 
 ## Fonctionnalités principales
 -   Chargement de fichiers **CSV** (via

@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Anomaly Detection Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #a5d2e3 0%, #40bc6e 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .upload-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .file-input-wrapper:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-input-wrapper input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .kpi-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .revenue { color: #10b981; }
+        .orders { color: #3b82f6; }
+        .anomalies { color: #ef4444; }
+        .clean-rate { color: #8b5cf6; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            height: 400px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls input, .controls select {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .controls input:focus, .controls select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .data-table {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .table-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #e2e8f0;
+        }
+
+        .anomaly-row {
+            background-color: #fef2f2;
+        }
+
+        .anomaly-badge {
+            background: #ef4444;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .normal-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f8fafc;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #bbf7d0;
+            margin-bottom: 20px;
+        }
+
+        .anomaly-details {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .anomaly-type {
+            display: inline-block;
+            background: #ef4444;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .controls input, .controls select {
+                width: 100%;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>E-commerce Anomaly Detection Dashboard</h1>
+            <p>Analyse avancée et détection automatique d'anomalies dans vos données e-commerce</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <input type="file" id="csvFile" accept=".csv" />
+                Charger le fichier CSV
+            </div>
+            <div id="fileInfo" style="margin-top: 15px; display: none;"></div>
+        </div>
+
+        <div id="loadingSection" class="loading" style="display: none;">
+            <div class="spinner"></div>
+        </div>
+
+        <div id="errorSection" style="display: none;"></div>
+
+        <div id="dashboardSection" style="display: none;">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-value revenue" id="totalRevenue">0</div>
+                    <div class="kpi-label">Chiffre d'affaires total</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value orders" id="totalOrders">0</div>
+                    <div class="kpi-label">Nombre de commandes</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value anomalies" id="anomaliesCount">0</div>
+                    <div class="kpi-label">Anomalies détectées</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value clean-rate" id="cleanRate">0%</div>
+                    <div class="kpi-label">Taux de données propres</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Évolution des ventes</h3>
+                    <canvas id="salesChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Répartition par pays</h3>
+                    <canvas id="countryChart"></canvas>
+                </div>
+                <div class="chart-container full-width">
+                    <h3>Heatmap des anomalies</h3>
+                    <canvas id="heatmapChart"></canvas>
+                </div>
+            </div>
+
+            <div class="anomaly-details">
+                <h3>Détail des anomalies détectées</h3>
+                <div id="anomalyReport"></div>
+            </div>
+
+            <div class="controls">
+                <div class="controls-row">
+                    <input type="text" id="searchInput" placeholder="Rechercher..." />
+                    <select id="statusFilter">
+                        <option value="">Tous les statuts</option>
+                        <option value="anomaly">Anomalies seulement</option>
+                        <option value="clean">Données propres</option>
+                    </select>
+                    <select id="categoryFilter">
+                        <option value="">Toutes les catégories</option>
+                    </select>
+                    <button class="btn" onclick="exportCleanData()">Exporter données nettoyées</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">Reset filtres</button>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <div class="table-header">
+                    <h3>Table des données</h3>
+                    <span id="tableInfo">0 lignes affichées</span>
+                </div>
+                <div class="table-wrapper">
+                    <table id="dataTable">
+                        <thead id="tableHeader"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AnomalyDetector {
+            constructor(data) {
+                this.data = data;
+                this.anomalies = [];
+                this.cleanData = [];
+                this.anomalyReport = {
+                    priceAnomalies: { indices: [], score: 0, reason: "" },
+                    quantityAnomalies: { indices: [], score: 0, reason: "" },
+                    formatAnomalies: { indices: [], score: 0, reason: "" },
+                    duplicateAnomalies: { indices: [], score: 0, reason: "" }
+                };
+            }
+
+            detectPriceAnomalies() {
+                const indices = [];
+                const validPrices = [];
+                
+                this.data.forEach((row, index) => {
+                    const price = parseFloat(row.price);
+                    const totalAmount = parseFloat(row.total_amount);
+                    const quantity = parseInt(row.quantity);
+                    
+                    // Critical anomalies
+                    if (isNaN(price) || price < 0) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'price',
+                            severity: 'high',
+                            description: isNaN(price) ? 'Prix manquant/invalide' : 'Prix négatif',
+                            value: price
+                        });
+                        return;
+                    }
+                    
+                    // Zero price anomaly
+                    if (price === 0) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'price',
+                            severity: 'high',
+                            description: 'Prix à zéro',
+                            value: price
+                        });
+                        return;
+                    }
+                    
+                    // Price-total inconsistency
+                    if (!isNaN(totalAmount) && !isNaN(quantity) && quantity > 0) {
+                        const expectedTotal = price * quantity;
+                        const difference = Math.abs(expectedTotal - totalAmount);
+                        const tolerance = expectedTotal * 0.01; // 1% tolerance
+                        
+                        if (difference > tolerance && difference > 1) {
+                            indices.push(index);
+                            this.anomalies.push({
+                                index,
+                                type: 'price',
+                                severity: 'medium',
+                                description: `Incohérence prix * quantité (attendu: ${expectedTotal.toFixed(2)}, réel: ${totalAmount})`,
+                                value: difference
+                            });
+                            return;
+                        }
+                    }
+                    
+                    validPrices.push(price);
+                });
+                
+                // Statistical outlier detection for valid prices
+                if (validPrices.length > 10) {
+                    const mean = validPrices.reduce((sum, p) => sum + p, 0) / validPrices.length;
+                    const stdDev = Math.sqrt(validPrices.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / validPrices.length);
+                    const threshold = 2.5;
+                    
+                    this.data.forEach((row, index) => {
+                        const price = parseFloat(row.price);
+                        if (!isNaN(price) && price > 0 && Math.abs(price - mean) > threshold * stdDev) {
+                            if (!indices.includes(index)) {
+                                indices.push(index);
+                                this.anomalies.push({
+                                    index,
+                                    type: 'price',
+                                    severity: 'medium',
+                                    description: `Prix statistiquement aberrant (${price}, μ=${mean.toFixed(2)})`,
+                                    value: price
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                const score = Math.min(indices.length / this.data.length, 1);
+                const reason = `${indices.length} anomalies de prix détectées`;
+                
+                this.anomalyReport.priceAnomalies = { indices, score, reason };
+                return { indices, score, reason };
+            }
+
+            detectQuantityAnomalies() {
+                const indices = [];
+                const validQuantities = [];
+                
+                this.data.forEach((row, index) => {
+                    const quantity = parseInt(row.quantity);
+                    const totalAmount = parseFloat(row.total_amount);
+                    
+                    // Critical anomalies
+                    if (isNaN(quantity)) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'quantity',
+                            severity: 'high',
+                            description: 'Quantité manquante/invalide',
+                            value: row.quantity
+                        });
+                        return;
+                    }
+                    
+                    if (quantity <= 0) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'quantity',
+                            severity: 'high',
+                            description: 'Quantité nulle ou négative',
+                            value: quantity
+                        });
+                        return;
+                    }
+                    
+                    // Business logic anomalies
+                    if (quantity > 20) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'quantity',
+                            severity: 'medium',
+                            description: `Quantité excessive (${quantity} articles)`,
+                            value: quantity
+                        });
+                        return;
+                    }
+                    
+                    // Zero total with positive quantity
+                    if (quantity > 0 && totalAmount === 0) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'quantity',
+                            severity: 'high',
+                            description: 'Quantité positive mais montant total à zéro',
+                            value: `${quantity} items, 0`
+                        });
+                        return;
+                    }
+                    
+                    validQuantities.push(quantity);
+                });
+                
+                // Statistical outlier detection for valid quantities
+                if (validQuantities.length > 10) {
+                    const mean = validQuantities.reduce((sum, q) => sum + q, 0) / validQuantities.length;
+                    const stdDev = Math.sqrt(validQuantities.reduce((sum, q) => sum + Math.pow(q - mean, 2), 0) / validQuantities.length);
+                    const threshold = 3; // Z-score threshold for quantities
+                    
+                    this.data.forEach((row, index) => {
+                        const quantity = parseInt(row.quantity);
+                        if (!isNaN(quantity) && quantity > 0 && Math.abs(quantity - mean) > threshold * stdDev) {
+                            if (!indices.includes(index)) {
+                                indices.push(index);
+                                this.anomalies.push({
+                                    index,
+                                    type: 'quantity',
+                                    severity: 'medium',
+                                    description: `Quantité statistiquement aberrante (${quantity}, μ=${mean.toFixed(1)})`,
+                                    value: quantity
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                const score = Math.min(indices.length / this.data.length, 1);
+                const reason = `${indices.length} anomalies de quantité détectées`;
+                
+                this.anomalyReport.quantityAnomalies = { indices, score, reason };
+                return { indices, score, reason };
+            }
+
+            detectFormatAnomalies() {
+                const indices = [];
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const dateFormats = [
+                    /^\d{4}-\d{2}-\d{2}$/,
+                    /^\d{4}-\d{2}-\d{2}\s\d{1,2}:\d{2}$/,
+                    /^\d{1,2}\/\d{1,2}\/\d{4}$/
+                ];
+                
+                // Expected categories mapping for products
+                const productCategoryMap = {
+                    'Dell XPS': 'Electronics',
+                    'MacBook Pro': 'Electronics', 
+                    'iPhone 15 Pro': 'Electronics',
+                    'Samsung Galaxy': 'Electronics',
+                    'Sony Headphones': 'Electronics',
+                    'Bose Speaker': 'Electronics',
+                    'Vacuum Cleaner': 'Electronics',
+                    'Coffee Machine': 'Electronics',
+                    'Levi\'s Jeans': 'Clothing',
+                    'H&M T-Shirt': 'Clothing',
+                    'Zara Dress': 'Clothing',
+                    'Nike Air Max': 'Clothing',
+                    'Adidas Ultraboost': 'Clothing',
+                    'Python Programming': 'Books',
+                    'The Great Gatsby': 'Books',
+                    'Skincare Set': 'Beauty',
+                    'Protein Powder': 'Sports',
+                    'Yoga Mat': 'Sports',
+                    'Garden Tools': 'Home & Garden'
+                };
+                
+                this.data.forEach((row, index) => {
+                    let hasFormatIssue = false;
+                    let issues = [];
+                    
+                    // Check missing or invalid age
+                    if (!row.customer_age || row.customer_age === '-' || row.customer_age === '' || 
+                        isNaN(parseInt(row.customer_age)) || parseInt(row.customer_age) < 18 || parseInt(row.customer_age) > 100) {
+                        hasFormatIssue = true;
+                        issues.push('Âge manquant/invalide');
+                    }
+                    
+                    // Check email format
+                    if (row.customer_email && !emailRegex.test(row.customer_email.trim())) {
+                        hasFormatIssue = true;
+                        issues.push('Email malformé');
+                    }
+                    
+                    // Check date format
+                    if (row.order_date) {
+                        const date = row.order_date.trim();
+                        const isValidDate = dateFormats.some(format => format.test(date));
+                        if (!isValidDate) {
+                            hasFormatIssue = true;
+                            issues.push('Format de date invalide');
+                        }
+                    }
+                    
+                    // Check category consistency
+                    if (row.product_name && row.category) {
+                        const productKey = Object.keys(productCategoryMap).find(key => 
+                            row.product_name.toLowerCase().includes(key.toLowerCase()) ||
+                            key.toLowerCase().includes(row.product_name.toLowerCase().split(' ')[0])
+                        );
+                        
+                        if (productKey) {
+                            const expectedCategory = productCategoryMap[productKey];
+                            const actualCategory = row.category.trim();
+                            
+                            // Normalize category names for comparison
+                            const normalizedActual = actualCategory.toLowerCase()
+                                .replace(/s$/, '') // Remove plural
+                                .replace(/&/g, 'and')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                            const normalizedExpected = expectedCategory.toLowerCase()
+                                .replace(/s$/, '')
+                                .replace(/&/g, 'and')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                            
+                            if (normalizedActual !== normalizedExpected && 
+                                !normalizedActual.includes(normalizedExpected) &&
+                                !normalizedExpected.includes(normalizedActual)) {
+                                hasFormatIssue = true;
+                                issues.push(`Catégorie incohérente: ${row.product_name} → ${actualCategory} (attendu: ${expectedCategory})`);
+                            }
+                        }
+                    }
+                    
+                    // Check for extra spaces
+                    const hasExtraSpaces = Object.values(row).some(value => 
+                        typeof value === 'string' && (value.startsWith(' ') || value.endsWith(' '))
+                    );
+                    if (hasExtraSpaces) {
+                        hasFormatIssue = true;
+                        issues.push('Espaces parasites');
+                    }
+                    
+                    // Check customer_id format
+                    if (row.customer_id && !row.customer_id.toUpperCase().startsWith('CUST')) {
+                        hasFormatIssue = true;
+                        issues.push('Format customer_id incorrect');
+                    }
+                    
+                    // Check order_status validity
+                    const validStatuses = ['Processing', 'Shipped', 'Delivered', 'Cancelled'];
+                    if (row.order_status && !validStatuses.includes(row.order_status.trim())) {
+                        hasFormatIssue = true;
+                        issues.push('Statut de commande invalide');
+                    }
+                    
+                    if (hasFormatIssue) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'format',
+                            severity: issues.some(i => i.includes('Âge') || i.includes('Catégorie')) ? 'high' : 'medium',
+                            description: issues.join(', '),
+                            value: issues.length
+                        });
+                    }
+                });
+                
+                const score = Math.min(indices.length / this.data.length, 1);
+                const reason = `${indices.length} problèmes de format détectés`;
+                
+                this.anomalyReport.formatAnomalies = { indices, score, reason };
+                return { indices, score, reason };
+            }
+
+            detectDuplicateAnomalies() {
+                const indices = [];
+                const seen = new Map();
+                
+                this.data.forEach((row, index) => {
+                    const key = `${row.order_id}_${row.customer_id}_${row.order_date}`;
+                    if (seen.has(key)) {
+                        indices.push(index);
+                        this.anomalies.push({
+                            index,
+                            type: 'duplicate',
+                            severity: 'low',
+                            description: `Possible doublon (Order ID: ${row.order_id})`,
+                            value: key
+                        });
+                    } else {
+                        seen.set(key, index);
+                    }
+                });
+                
+                const score = Math.min(indices.length / this.data.length, 1);
+                const reason = `${indices.length} possibles doublons détectés`;
+                
+                this.anomalyReport.duplicateAnomalies = { indices, score, reason };
+                return { indices, score, reason };
+            }
+
+            detectAllAnomalies() {
+                console.log('Début de la détection d\'anomalies...');
+                this.anomalies = [];
+                
+                this.detectPriceAnomalies();
+                this.detectQuantityAnomalies();
+                this.detectFormatAnomalies();
+                this.detectDuplicateAnomalies();
+                
+                // supprimer les anomalies dupliqués (une ligne peux avoir plusieurs anaomalies)
+                const uniqueAnomalyIndices = [...new Set(this.anomalies.map(a => a.index))];
+                
+                // suppression des lignes avec n'importe quel anomalies 
+                this.cleanData = this.data.filter((_, index) => !uniqueAnomalyIndices.includes(index));
+                
+                console.log(`Détection terminée: ${this.anomalies.length} anomalies trouvées sur ${uniqueAnomalyIndices.length} lignes`);
+                return this.anomalies;
+            }
+
+            generateReport() {
+                const totalAnomalies = [...new Set(this.anomalies.map(a => a.index))].length; // seulement les lignes avec anomalies
+                const totalRecords = this.data.length;
+                const cleanDataPercent = ((totalRecords - totalAnomalies) / totalRecords * 100).toFixed(1);
+                
+                // Calcul la distribution de severity
+                const severityCount = {
+                    high: this.anomalies.filter(a => a.severity === 'high').length,
+                    medium: this.anomalies.filter(a => a.severity === 'medium').length,
+                    low: this.anomalies.filter(a => a.severity === 'low').length
+                };
+                
+                // Calcul de l'impact financier
+                const anomalyIndices = new Set(this.anomalies.map(a => a.index));
+                const lostRevenue = this.data.reduce((sum, row, index) => {
+                    if (anomalyIndices.has(index)) {
+                        const amount = parseFloat(row.total_amount);
+                        return sum + (isNaN(amount) ? 0 : Math.max(0, amount));
+                    }
+                    return sum;
+                }, 0);
+                
+                const report = {
+                    summary: {
+                        totalRecords,
+                        totalAnomalies,
+                        totalAnomalyInstances: this.anomalies.length,
+                        cleanDataPercent,
+                        severityDistribution: severityCount,
+                        estimatedLostRevenue: lostRevenue,
+                        processingTime: Date.now()
+                    },
+                    details: this.anomalyReport,
+                    recommendations: this.generateRecommendations(),
+                    anomalies: this.anomalies,
+                    cleanData: this.cleanData
+                };
+                
+                return report;
+            }
+
+            generateRecommendations() {
+                const recommendations = [];
+                
+                if (this.anomalyReport.priceAnomalies.indices.length > 0) {
+                    recommendations.push("Vérifier la logique de calcul des prix et gérer les retours/remboursements");
+                }
+                
+                if (this.anomalyReport.quantityAnomalies.indices.length > 0) {
+                    recommendations.push("Implémenter des contrôles sur les quantités commandées");
+                }
+                
+                if (this.anomalyReport.formatAnomalies.indices.length > 0) {
+                    recommendations.push("Standardiser les formats de données et nettoyer les espaces");
+                }
+                
+                if (this.anomalyReport.duplicateAnomalies.indices.length > 0) {
+                    recommendations.push("Mettre en place une déduplication automatique");
+                }
+                
+                return recommendations;
+            }
+        }
+
+        class Dashboard {
+            constructor() {
+                this.data = [];
+                this.filteredData = [];
+                this.anomalyDetector = null;
+                this.currentPage = 1;
+                this.itemsPerPage = 50;
+                this.sortColumn = null;
+                this.sortDirection = 'asc';
+                this.charts = {};
+                
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                document.getElementById('csvFile').addEventListener('change', (e) => this.handleFileUpload(e));
+                document.getElementById('searchInput').addEventListener('input', (e) => this.handleSearch(e));
+                document.getElementById('statusFilter').addEventListener('change', (e) => this.handleFilter(e));
+                document.getElementById('categoryFilter').addEventListener('change', (e) => this.handleFilter(e));
+            }
+
+            async handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                this.showLoading();
+                
+                try {
+                    const text = await file.text();
+                    const results = Papa.parse(text, {
+                        header: true,
+                        skipEmptyLines: true,
+                        delimiter: ",", // adapter ici si ton CSV utilise ";"
+                        transformHeader: header => header.trim(),
+                        transform: (value, header) => {
+                            // suppression des space et normalisation des données
+                            if (typeof value === 'string') {
+                                return value.trim();
+                            }
+                            return value;
+                        }
+                    });
+
+                    if (results.errors.length > 0) {
+                        throw new Error('Erreurs dans le parsing CSV: ' + results.errors.map(e => e.message).join(', '));
+                    }
+
+                    this.data = results.data;
+                    this.filteredData = [...this.data];
+                    
+                    this.showFileInfo(file, this.data.length);
+                    await this.processData();
+                    this.hideLoading();
+                    this.showDashboard();
+                    
+                } catch (error) {
+                    this.hideLoading();
+                    this.showError('Erreur lors du chargement du fichier: ' + error.message);
+                }
+            }
+
+            async processData() {
+                const startTime = performance.now();
+                
+                // Initialize anomaly detector
+                this.anomalyDetector = new AnomalyDetector(this.data);
+                
+                // Detect anomalies
+                const anomalies = this.anomalyDetector.detectAllAnomalies();
+                const report = this.anomalyDetector.generateReport();
+                
+                const endTime = performance.now();
+                console.log(`Processing completed in ${(endTime - startTime).toFixed(2)}ms`);
+                
+                // Update KPIs
+                this.updateKPIs(report);
+                
+                // Create charts
+                this.createCharts();
+                
+                // Display anomaly report
+                this.displayAnomalyReport(report);
+                
+                // Populate table
+                this.populateTable();
+                
+                // Fill category filter
+                this.populateCategoryFilter();
+            }
+
+            updateKPIs(report) {
+                // Calcul total revenue
+                const totalRevenue = this.data.reduce((sum, row) => {
+                    const amount = parseFloat(row.total_amount);
+                    return sum + (isNaN(amount) ? 0 : Math.max(0, amount));
+                }, 0);
+                
+                // Format revenue sans la devise
+                document.getElementById('totalRevenue').textContent = 
+                    totalRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                
+                document.getElementById('totalOrders').textContent = 
+                    this.data.length.toLocaleString('fr-FR');
+                
+                document.getElementById('anomaliesCount').textContent = 
+                    report.summary.totalAnomalies.toLocaleString('fr-FR');
+                
+                document.getElementById('cleanRate').textContent = 
+                    report.summary.cleanDataPercent + '%';
+            }
+
+            createCharts() {
+                this.createSalesChart();
+                this.createCountryChart();
+                this.createHeatmapChart();
+            }
+
+            createSalesChart() {
+                const ctx = document.getElementById('salesChart').getContext('2d');
+                
+                // Group by month
+                const salesByMonth = {};
+                this.data.forEach(row => {
+                    if (row.order_date && row.total_amount) {
+                        let date;
+                        try {
+                            // Handle different date formats
+                            if (row.order_date.includes('/')) {
+                                const parts = row.order_date.split('/');
+                                date = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+                            } else {
+                                date = new Date(row.order_date);
+                            }
+                            
+                            if (!isNaN(date.getTime())) {
+                                const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                                const amount = parseFloat(row.total_amount);
+                                if (!isNaN(amount) && amount > 0) {
+                                    salesByMonth[monthKey] = (salesByMonth[monthKey] || 0) + amount;
+                                }
+                            }
+                        } catch (e) {
+                            // Skip invalid dates
+                        }
+                    }
+                });
+
+                const sortedData = Object.entries(salesByMonth)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .slice(-12); // Last 12 months
+
+                this.charts.salesChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: sortedData.map(([month]) => {
+                            const [year, monthNum] = month.split('-');
+                            return new Date(year, monthNum - 1).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+                        }),
+                        datasets: [{
+                            label: 'Chiffre d\'affaires',
+                            data: sortedData.map(([, amount]) => amount),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            createCountryChart() {
+                const ctx = document.getElementById('countryChart').getContext('2d');
+                
+                // Groupe  par country
+                const countryData = {};
+                this.data.forEach(row => {
+                    if (row.country) {
+                        const country = row.country.trim();
+                        const normalizedCountry = country === 'Deutschland' ? 'Germany' : 
+                                                country === 'Italia' ? 'Italy' :
+                                                country === 'FRANCE' ? 'France' : country;
+                        countryData[normalizedCountry] = (countryData[normalizedCountry] || 0) + 1;
+                    }
+                });
+
+                const sortedCountries = Object.entries(countryData)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 8);
+
+                const colors = [
+                    '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                    '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                ];
+
+                this.charts.countryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: sortedCountries.map(([country]) => country),
+                        datasets: [{
+                            data: sortedCountries.map(([, count]) => count),
+                            backgroundColor: colors,
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            createHeatmapChart() {
+                const ctx = document.getElementById('heatmapChart').getContext('2d');
+                
+                // le heatmap groupé par catégorie et statut
+                const categories = [...new Set(this.data.map(row => row.category).filter(Boolean))].sort();
+                const statuses = [...new Set(this.data.map(row => row.order_status).filter(Boolean))].sort();
+                
+                if (categories.length === 0 || statuses.length === 0) {
+                    // afficher le message pour des graphes vides
+                    ctx.fillStyle = '#666';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Aucune donnée disponible pour la heatmap', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                    return;
+                }
+                
+                const anomalyIndices = new Set(this.anomalyDetector.anomalies.map(a => a.index));
+                
+                // Création d'un matrix data pour le heatmap
+                const matrixData = [];
+                const labels = [];
+                
+                categories.forEach((category, catIndex) => {
+                    statuses.forEach((status, statusIndex) => {
+                        const relevantRows = [];
+                        this.data.forEach((row, originalIndex) => {
+                            if (row.category === category && row.order_status === status) {
+                                relevantRows.push({row, originalIndex});
+                            }
+                        });
+                        
+                        if (relevantRows.length > 0) {
+                            const anomaliesInGroup = relevantRows.filter(item => 
+                                anomalyIndices.has(item.originalIndex)
+                            ).length;
+                            
+                            const anomalyRate = anomaliesInGroup / relevantRows.length;
+                            
+                            matrixData.push({
+                                x: status,
+                                y: category,
+                                v: Math.round(anomalyRate * 100) // Percentage
+                            });
+                        }
+                    });
+                });
+
+                // créons un diagramme en barre pour une meilleur visualisation du heatmap
+                const chartData = {
+                    labels: categories,
+                    datasets: statuses.map((status, index) => {
+                        const color = `hsl(${(index * 137.5) % 360}, 70%, 50%)`;
+                        return {
+                            label: status,
+                            data: categories.map(category => {
+                                const dataPoint = matrixData.find(d => d.x === status && d.y === category);
+                                return dataPoint ? dataPoint.v : 0;
+                            }),
+                            backgroundColor: color + '80', // Ajoutons du tranparence
+                            borderColor: color,
+                            borderWidth: 1
+                        };
+                    })
+                };
+
+                this.charts.heatmapChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Catégories'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Taux d\'anomalies (%)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Taux d\'anomalies par catégorie et statut'
+                            },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    padding: 20
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        return `${context[0].label} - ${context[0].dataset.label}`;
+                                    },
+                                    label: function(context) {
+                                        return `Taux d'anomalies: ${context.parsed.y}%`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            displayAnomalyReport(report) {
+                const container = document.getElementById('anomalyReport');
+                
+                let html = `
+                    <div style="margin-bottom: 20px;">
+                        <h4>Résumé de l'analyse</h4>
+                        <p><strong>Temps de traitement:</strong> ${((Date.now() - report.summary.processingTime) / 1000).toFixed(2)}s</p>
+                        <p><strong>Données analysées:</strong> ${report.summary.totalRecords.toLocaleString('fr-FR')} enregistrements</p>
+                        <p><strong>Lignes avec anomalies:</strong> ${report.summary.totalAnomalies.toLocaleString('fr-FR')} (${(100 - parseFloat(report.summary.cleanDataPercent)).toFixed(1)}%)</p>
+                        <p><strong>Total anomalies détectées:</strong> ${report.summary.totalAnomalyInstances.toLocaleString('fr-FR')}</p>
+                        <p><strong>Impact financier estimé:</strong> ${report.summary.estimatedLostRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                `;
+
+                // Severity breakdown
+                html += `
+                    <div style="margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
+                        <h4>Répartition par sévérité</h4>
+                        <div style="display: flex; gap: 20px; margin-top: 10px;">
+                            <span style="color: #dc2626;"><strong>Critique:</strong> ${report.summary.severityDistribution.high}</span>
+                            <span style="color: #f59e0b;"><strong>Moyenne:</strong> ${report.summary.severityDistribution.medium}</span>
+                            <span style="color: #10b981;"><strong>Faible:</strong> ${report.summary.severityDistribution.low}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Anomaly types breakdown
+                const anomalyTypes = [
+                    { name: 'Prix aberrants', data: report.details.priceAnomalies, icon: '💰', color: '#dc2626' },
+                    { name: 'Quantités aberrantes', data: report.details.quantityAnomalies, icon: '📦', color: '#f59e0b' },
+                    { name: 'Erreurs de format', data: report.details.formatAnomalies, icon: '🔤', color: '#8b5cf6' },
+                    { name: 'Doublons potentiels', data: report.details.duplicateAnomalies, icon: '🔄', color: '#06b6d4' }
+                ];
+
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">';
+                
+                anomalyTypes.forEach(type => {
+                    const percentage = ((type.data.indices.length / this.data.length) * 100).toFixed(1);
+                    const score = (type.data.score * 100).toFixed(1);
+                    html += `
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border-left: 4px solid ${type.color};">
+                            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 1.2em; margin-right: 8px;">${type.icon}</span>
+                                <strong>${type.name}</strong>
+                            </div>
+                            <div style="font-size: 1.5em; font-weight: bold; color: ${type.color};">${type.data.indices.length}</div>
+                            <div style="font-size: 0.9em; color: #666;">${percentage}% des lignes</div>
+                            <div style="font-size: 0.8em; color: #888; margin-top: 5px;">${type.data.reason}</div>
+                            <div style="background: rgba(255,255,255,0.8); padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 0.85em;">
+                                <strong>Score de risque:</strong> ${score}%
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+
+                // Top anomalies preview
+                const topAnomalies = this.anomalyDetector.anomalies
+                    .filter(a => a.severity === 'high')
+                    .slice(0, 5);
+                    
+                if (topAnomalies.length > 0) {
+                    html += `
+                        <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #dc2626; margin-bottom: 20px;">
+                            <h4 style="color: #dc2626; margin-bottom: 15px;">Top anomalies critiques</h4>
+                            <div style="font-size: 0.9em;">
+                                ${topAnomalies.map(anomaly => `
+                                    <div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.7); border-radius: 6px;">
+                                        <strong>Ligne ${anomaly.index + 1}:</strong> ${anomaly.description}
+                                        <br><span style="color: #666; font-size: 0.85em;">Type: ${anomaly.type} | Valeur: ${anomaly.value}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Recommendations
+                if (report.recommendations.length > 0) {
+                    html += `
+                        <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 4px solid #10b981;">
+                            <h4 style="color: #16a34a; margin-bottom: 15px;">Recommandations prioritaires</h4>
+                            <ul style="margin: 0; padding-left: 20px;">
+                                ${report.recommendations.map(rec => `<li style="margin-bottom: 8px;">${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = html;
+            }
+
+            populateTable() {
+                const table = document.getElementById('dataTable');
+                const thead = document.getElementById('tableHeader');
+                const tbody = document.getElementById('tableBody');
+                
+                if (this.data.length === 0) return;
+                
+                // Create header
+                const headers = Object.keys(this.data[0]);
+                thead.innerHTML = `
+                    <tr>
+                        ${headers.map(header => `
+                            <th onclick="dashboard.sortTable('${header}')" style="cursor: pointer;">
+                                ${this.formatHeader(header)}
+                                ${this.sortColumn === header ? (this.sortDirection === 'asc' ? '▲' : '▼') : ''}
+                            </th>
+                        `).join('')}
+                        <th>Status</th>
+                    </tr>
+                `;
+                
+                this.renderTablePage();
+            }
+
+            renderTablePage() {
+                const tbody = document.getElementById('tableBody');
+                const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+                const endIndex = Math.min(startIndex + this.itemsPerPage, this.filteredData.length);
+                
+                // Create a map of anomalies by original data index for faster lookup
+                const anomalyMap = new Map();
+                this.anomalyDetector.anomalies.forEach(anomaly => {
+                    if (!anomalyMap.has(anomaly.index)) {
+                        anomalyMap.set(anomaly.index, []);
+                    }
+                    anomalyMap.get(anomaly.index).push(anomaly);
+                });
+                
+                let html = '';
+                for (let i = startIndex; i < endIndex; i++) {
+                    const row = this.filteredData[i];
+                    
+                    // Find original index in the main dataset
+                    const originalIndex = this.data.findIndex((originalRow, idx) => {
+                        return originalRow.order_id === row.order_id && 
+                               originalRow.customer_id === row.customer_id && 
+                               originalRow.order_date === row.order_date &&
+                               originalRow.customer_email === row.customer_email;
+                    });
+                    
+                    const anomaliesForRow = anomalyMap.get(originalIndex) || [];
+                    const isAnomaly = anomaliesForRow.length > 0;
+                    
+                    html += `<tr class="${isAnomaly ? 'anomaly-row' : ''}">`;
+                    Object.values(row).forEach(value => {
+                        html += `<td>${this.formatCellValue(value)}</td>`;
+                    });
+                    
+                    html += `<td>`;
+                    if (isAnomaly) {
+                        anomaliesForRow.forEach((anomaly, idx) => {
+                            if (idx > 0) html += '<br>';
+                            html += `<span class="anomaly-type">${anomaly.type}: ${anomaly.description}</span>`;
+                        });
+                    } else {
+                        html += `<span class="normal-badge">✓ Propre</span>`;
+                    }
+                    html += `</td>`;
+                    html += `</tr>`;
+                }
+                
+                tbody.innerHTML = html;
+                
+                // Update table info
+                document.getElementById('tableInfo').textContent = 
+                    `${startIndex + 1}-${endIndex} de ${this.filteredData.length} lignes`;
+                
+                this.renderPagination();
+            }
+
+            renderPagination() {
+                const container = document.getElementById('pagination');
+                const totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+                
+                if (totalPages <= 1) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                let html = `
+                    <button onclick="dashboard.goToPage(${this.currentPage - 1})" ${this.currentPage === 1 ? 'disabled' : ''}>
+                        ◀ Précédent
+                    </button>
+                `;
+                
+                // Show page numbers
+                const startPage = Math.max(1, this.currentPage - 2);
+                const endPage = Math.min(totalPages, this.currentPage + 2);
+                
+                if (startPage > 1) {
+                    html += `<button onclick="dashboard.goToPage(1)">1</button>`;
+                    if (startPage > 2) html += `<span>...</span>`;
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    html += `
+                        <button onclick="dashboard.goToPage(${i})" ${i === this.currentPage ? 'class="active"' : ''}>
+                            ${i}
+                        </button>
+                    `;
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) html += `<span>...</span>`;
+                    html += `<button onclick="dashboard.goToPage(${totalPages})">${totalPages}</button>`;
+                }
+                
+                html += `
+                    <button onclick="dashboard.goToPage(${this.currentPage + 1})" ${this.currentPage === totalPages ? 'disabled' : ''}>
+                        Suivant ▶
+                    </button>
+                `;
+                
+                container.innerHTML = html;
+            }
+
+            goToPage(page) {
+                const totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+                if (page < 1 || page > totalPages) return;
+                
+                this.currentPage = page;
+                this.renderTablePage();
+            }
+
+            sortTable(column) {
+                if (this.sortColumn === column) {
+                    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortColumn = column;
+                    this.sortDirection = 'asc';
+                }
+                
+                this.filteredData.sort((a, b) => {
+                    let valueA = a[column];
+                    let valueB = b[column];
+                    
+                    // Handle numeric values
+                    if (!isNaN(parseFloat(valueA)) && !isNaN(parseFloat(valueB))) {
+                        valueA = parseFloat(valueA);
+                        valueB = parseFloat(valueB);
+                    }
+                    
+                    // Handle dates
+                    if (column === 'order_date') {
+                        valueA = new Date(valueA);
+                        valueB = new Date(valueB);
+                    }
+                    
+                    if (valueA < valueB) return this.sortDirection === 'asc' ? -1 : 1;
+                    if (valueA > valueB) return this.sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                
+                this.currentPage = 1;
+                this.populateTable();
+            }
+
+            handleSearch(event) {
+                this.applyFilters();
+            }
+
+            handleFilter(event) {
+                this.applyFilters();
+            }
+
+            applyFilters() {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const statusFilter = document.getElementById('statusFilter').value;
+                const categoryFilter = document.getElementById('categoryFilter').value;
+                
+                // Create a map of anomalies by original data index for faster lookup
+                const anomalyMap = new Map();
+                this.anomalyDetector.anomalies.forEach(anomaly => {
+                    if (!anomalyMap.has(anomaly.index)) {
+                        anomalyMap.set(anomaly.index, []);
+                    }
+                    anomalyMap.get(anomaly.index).push(anomaly);
+                });
+                
+                this.filteredData = this.data.filter((row, index) => {
+                    // Search filter
+                    if (searchTerm) {
+                        const searchMatch = Object.values(row).some(value => 
+                            String(value).toLowerCase().includes(searchTerm)
+                        );
+                        if (!searchMatch) return false;
+                    }
+                    
+                    // Status filter based on actual anomaly detection
+                    const hasAnomalies = anomalyMap.has(index);
+                    if (statusFilter === 'anomaly' && !hasAnomalies) return false;
+                    if (statusFilter === 'clean' && hasAnomalies) return false;
+                    
+                    // Category filter
+                    if (categoryFilter && row.category !== categoryFilter) return false;
+                    
+                    return true;
+                });
+                
+                this.currentPage = 1;
+                this.renderTablePage();
+            }
+
+            populateCategoryFilter() {
+                const select = document.getElementById('categoryFilter');
+                const categories = [...new Set(this.data.map(row => row.category).filter(Boolean))].sort();
+                
+                select.innerHTML = '<option value="">Toutes les catégories</option>';
+                categories.forEach(category => {
+                    select.innerHTML += `<option value="${category}">${category}</option>`;
+                });
+            }
+
+            formatHeader(header) {
+                return header.split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+            }
+
+            formatCellValue(value) {
+                if (value === null || value === undefined || value === '') return '-';
+                
+                // Format numbers with decimals but without assuming currency
+                if (!isNaN(parseFloat(value)) && String(value).includes('.') && 
+                    (String(value).match(/\./g) || []).length === 1) {
+                    const num = parseFloat(value);
+                    if (num > 1000 || num < 0) {
+                        return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                }
+                
+                return String(value).length > 30 ? String(value).substring(0, 30) + '...' : String(value);
+            }
+
+            showLoading() {
+                document.getElementById('loadingSection').style.display = 'block';
+                document.getElementById('dashboardSection').style.display = 'none';
+                document.getElementById('errorSection').style.display = 'none';
+            }
+
+            hideLoading() {
+                document.getElementById('loadingSection').style.display = 'none';
+            }
+
+            showDashboard() {
+                document.getElementById('dashboardSection').style.display = 'block';
+            }
+
+            showError(message) {
+                const errorSection = document.getElementById('errorSection');
+                errorSection.innerHTML = `<div class="error">⚠ ${message}</div>`;
+                errorSection.style.display = 'block';
+            }
+
+            showFileInfo(file, recordCount) {
+                const info = document.getElementById('fileInfo');
+                info.innerHTML = `
+                    <div class="success">
+                        ✅ Fichier chargé: <strong>${file.name}</strong> 
+                        (${(file.size / 1024).toFixed(1)} KB, ${recordCount.toLocaleString('fr-FR')} enregistrements)
+                    </div>
+                `;
+                info.style.display = 'block';
+            }
+        }
+
+        // Global functions
+        function exportCleanData() {
+            if (!dashboard.anomalyDetector) return;
+            
+            const cleanData = dashboard.anomalyDetector.cleanData;
+            if (cleanData.length === 0) {
+                alert('Aucune donnée propre à exporter');
+                return;
+            }
+            
+            const csv = Papa.unparse(cleanData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `ecommerce_clean_data_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('categoryFilter').value = '';
+            dashboard.applyFilters();
+        }
+
+        // Initialize dashboard
+        const dashboard = new Dashboard();
+
+        // Demo data loading for immediate testing
+        if (window.location.search.includes('demo=true')) {
+            // Auto-load demo data
+            setTimeout(() => {
+                const demoData = window.fs ? null : "Chargez le fichier CSV pour commencer l'analyse";
+                console.log('Demo mode: Upload CSV file to start analysis');
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

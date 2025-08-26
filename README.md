@@ -25,9 +25,9 @@ Ce projet est un tableau de bord interactif en une seule page (HTML, CSS, JavaSc
 ### 1. Cloner le dépôt
 utilisez votre cmd avec github installer de base
 
-git clone https://github.com/<ton-username>/ecommerce-anomaly-dashboard.git
+git clone https://github.com/Yague-kebe/e-commerce_dashboard.git
 
-cd ecommerce_dashboard
+cd e-commerce_dashboard
 
 ### 2. Lancer l'application
 
@@ -45,7 +45,7 @@ Le tableau de bord est conçu pour analyser des données avec les en-têtes de c
 ORD10582,2024-02-16,CUST0615,user18@gmail.com,57,Vacuum Cleaner,Electronics,610.39,4,2441.56,Netherlands,PayPal,Delivered
 
 ## Structure du projet
-ecommerce_dashboard/
+e-commerce_dashboard/
 
 │── index.html # Interface Web Interactive (React-style avec Vanilla JS)
 
